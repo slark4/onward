@@ -1,0 +1,59 @@
+/* Onward Popup */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  width: 350px;
+  font-family: "Inter", "Source Sans Pro", sans-serif;
+  background-color: #FAF9F6;
+  color: #2E3A59;
+  padding: 24px;
+}
+
+.popup-title {
+  font-family: "Lora", Georgia, serif;
+  font-size: 22px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.popup-tagline {
+  font-size: 13px;
+  color: #87A96B;
+  margin-bottom: 20px;
+}
+
+.popup-status {
+  background: #F0EFE9;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+  min-height: 80px;
+}
+
+.placeholder {
+  font-size: 13px;
+  color: #999;
+  font-style: italic;
+}
+
+.settings-link {
+  display: block;
+  text-align: center;
+  font-size: 13px;
+  color: #2E3A59;
+  text-decoration: none;
+  border: 1px solid #2E3A59;
+  border-radius: 6px;
+  padding: 8px 12px;
+  transition: background 0.15s;
+}
+
+.settings-link:hover {
+  background: #2E3A59;
+  color: #FAF9F6;
+}

@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Onward",
+  "version": "0.1.0",
+  "description": "A reset, not a block. Guided grounding sessions instead of hard blocks.",
+
+  "permissions": [
+    "storage",
+    "tabs",
+    "alarms"
+  ],
+
+  "host_permissions": [
+    "*://*.youtube.com/*"
+  ],
+
+  "background": {
+    "service_worker": "src/background/service_worker.js"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "js": ["src/shared/messages.js", "src/content/content_script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_title": "Onward"
+  },
+
+  "options_page": "src/options/options.html"
+}

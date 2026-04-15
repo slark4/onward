@@ -1,0 +1,41 @@
+/* Onward Options Page */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Inter", "Source Sans Pro", sans-serif;
+  background-color: #FAF9F6;
+  color: #2E3A59;
+  padding: 48px;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.options-title {
+  font-family: "Lora", Georgia, serif;
+  font-size: 32px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.options-subtitle {
+  font-size: 16px;
+  color: #87A96B;
+  margin-bottom: 40px;
+}
+
+.placeholder-section {
+  background: #F0EFE9;
+  border-radius: 8px;
+  padding: 24px;
+}
+
+.placeholder {
+  font-size: 14px;
+  color: #999;
+  font-style: italic;
+}
