@@ -4,7 +4,7 @@ A Chrome extension that interrupts time on monitored sites with a guided 3-minut
 
 ## Current Phase
 
-**Phase 3 — Interrupt UI:** Content script receives the interrupt message and applies a CSS blur to the page. Inject the focus panel over the blurred page and build the 3-tab session UI: breathing animation, reflection prompt, grounding checklist. Implement the 45-second rule (Next button hidden, then fades in). On session complete, remove blur and panel and reset the time budget.
+**Phase 4 — Content Pool:** Build `src/shared/content_pool.json` with the full set of breathing cues, reflection prompts, and grounding checklist items. Update `panel.js` to load the pool and select content randomly each session. Content lives in `content_pool.json` so it can be expanded without touching logic.
 
 ## Key Constraints
 
