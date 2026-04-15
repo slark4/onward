@@ -1,6 +1,5 @@
 // Onward — Background Service Worker
-// Handles time tracking, alarm ticks, and interrupt triggering.
-// Phase 2: tracks youtube.com with a 2-minute test budget.
+// Handles time tracking, alarm ticks, interrupt triggering, and budget resets.
 
 importScripts("../shared/messages.js", "../shared/storage.js");
 
@@ -124,7 +123,7 @@ chrome.runtime.onInstalled.addListener(async () => {
     try {
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
-        files: ["src/shared/messages.js", "src/content/content_script.js"],
+        files: ["src/shared/messages.js", "src/content/panel.js", "src/content/content_script.js"],
       });
       console.log(`[Onward] Injected content script into pre-existing tab ${tab.id} (${tab.url})`);
     } catch (err) {
@@ -318,7 +317,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       break;
 
     case MESSAGES.SESSION_COMPLETE:
-      // Phase 3 will call this after the grounding session finishes.
       // Reset accumulated time and interrupted flag, resume tracking.
       (async () => {
         const state = await Storage.getState();
