@@ -4,7 +4,7 @@ A Chrome extension that interrupts time on monitored sites with a guided 3-minut
 
 ## Current Phase
 
-**Phase 1 — Foundation:** Scaffold the extension, wire up all four script types (service worker, content script, popup, options page), and verify message-passing between them. No user-visible features yet.
+**Phase 3 — Interrupt UI:** Content script receives the interrupt message and applies a CSS blur to the page. Inject the focus panel over the blurred page and build the 3-tab session UI: breathing animation, reflection prompt, grounding checklist. Implement the 45-second rule (Next button hidden, then fades in). On session complete, remove blur and panel and reset the time budget.
 
 ## Key Constraints
 
