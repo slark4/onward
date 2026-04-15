@@ -1,0 +1,70 @@
+{
+  "breathing": [
+    {
+      "label": "Take a breath",
+      "phases": [
+        { "cue": "Breathe in",  "ms": 4000 },
+        { "cue": "Hold",        "ms": 4000 },
+        { "cue": "Breathe out", "ms": 6000 }
+      ]
+    },
+    {
+      "label": "Box breathing",
+      "phases": [
+        { "cue": "Breathe in",  "ms": 4000 },
+        { "cue": "Hold",        "ms": 4000 },
+        { "cue": "Breathe out", "ms": 4000 },
+        { "cue": "Hold",        "ms": 4000 }
+      ]
+    },
+    {
+      "label": "Find your pace",
+      "phases": [
+        { "cue": "Breathe in",  "ms": 4000 },
+        { "cue": "Breathe out", "ms": 6000 }
+      ]
+    },
+    {
+      "label": "4-7-8",
+      "phases": [
+        { "cue": "Breathe in",  "ms": 4000 },
+        { "cue": "Hold",        "ms": 7000 },
+        { "cue": "Breathe out", "ms": 8000 }
+      ]
+    }
+  ],
+  "reflection": [
+    "What have you done in the last hour? Are you okay with that?",
+    "Is this where you want to be right now?",
+    "What were you doing before you came here?",
+    "What were you hoping to find?",
+    "Name one thing you've been avoiding.",
+    "When was the last time you stood up and moved?",
+    "What would the version of you from this morning want you to do next?",
+    "What did you mean to do before you ended up here?",
+    "Is there someone waiting on something from you?",
+    "Are you bored, or are you avoiding something?",
+    "When did this stop being intentional?",
+    "What's one thing that would make today feel different?"
+  ],
+  "checklist": {
+    "label": "Check in with yourself",
+    "items": [
+      "Had some water recently",
+      "Eaten something today",
+      "Moved or stretched in the last hour",
+      "Gotten some fresh air today",
+      "Been to the bathroom recently",
+      "Unclench your jaw",
+      "Is there something on your to-do list that would take under 5 minutes?",
+      "Is there anything with a deadline today?",
+      "Anyone you've been meaning to check in with?",
+      "Is there something you've been avoiding?",
+      "Have you taken a real break in the last hour?",
+      "Sitting comfortably?",
+      "Anything open in your head that needs to be written down?",
+      "Is your phone face-down or silenced?"
+    ],
+    "pick": 4
+  }
+}

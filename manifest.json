@@ -32,5 +32,12 @@
     "default_title": "Onward"
   },
 
-  "options_page": "src/options/options.html"
+  "options_page": "src/options/options.html",
+
+  "web_accessible_resources": [
+    {
+      "resources": ["src/shared/content_pool.json"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

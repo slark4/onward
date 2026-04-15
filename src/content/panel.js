@@ -8,18 +8,19 @@
 window.OnwardPanel = (() => {
 
   // ---------------------------------------------------------------------------
-  // Content — Phase 3 placeholders; replaced by content pool in Phase 4
+  // Content pool — loaded async from content_pool.json; fallback if unavailable
   // ---------------------------------------------------------------------------
 
-  const CONTENT = {
+  const FALLBACK_CONTENT = {
     breathing: {
       label: "Take a breath",
-      cycleMs: 14_000, // 4s in / 4s hold / 6s out
+      phases: [
+        { cue: "Breathe in",  ms: 4000 },
+        { cue: "Hold",        ms: 4000 },
+        { cue: "Breathe out", ms: 6000 },
+      ],
     },
-    reflection: {
-      label: "A moment to reflect",
-      prompt: "What have you done in the last hour? Are you okay with that?",
-    },
+    reflection: "What have you done in the last hour? Are you okay with that?",
     checklist: {
       label: "Check in with yourself",
       items: [
@@ -30,6 +31,57 @@ window.OnwardPanel = (() => {
       ],
     },
   };
+
+  let pool = null;
+
+  (async () => {
+    try {
+      const resp = await fetch(chrome.runtime.getURL("src/shared/content_pool.json"));
+      pool = await resp.json();
+      console.log("[Onward] Content pool loaded.");
+    } catch (e) {
+      console.warn("[Onward] Could not load content pool, using fallback:", e);
+    }
+  })();
+
+  // ---------------------------------------------------------------------------
+  // Pool selection — shuffle queues per category, no repeats until all seen
+  // ---------------------------------------------------------------------------
+
+  const queues = {};
+
+  function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  // Returns the next item from a shuffled queue for the given pool category.
+  // When the queue empties it reshuffles the full category — guarantees every
+  // item is seen before any repeats.
+  function nextFromPool(category) {
+    if (!queues[category] || queues[category].length === 0) {
+      queues[category] = shuffle(pool[category]);
+    }
+    return queues[category].pop();
+  }
+
+  // Assembles one session's content: one breathing entry, one reflection
+  // prompt, and a random sample of checklist items from the larger pool.
+  function pickSession() {
+    if (!pool) return FALLBACK_CONTENT;
+    return {
+      breathing: nextFromPool("breathing"),
+      reflection: nextFromPool("reflection"),
+      checklist: {
+        label: pool.checklist.label,
+        items: shuffle(pool.checklist.items).slice(0, pool.checklist.pick),
+      },
+    };
+  }
 
   // ---------------------------------------------------------------------------
   // Timing & engagement constants
@@ -135,28 +187,8 @@ window.OnwardPanel = (() => {
       background: radial-gradient(circle, #87A96B 0%, #5E8A4A 100%);
       opacity: 0.88;
       margin-bottom: 28px;
-      animation: onward-breathe 14s linear infinite;
-    }
-
-    /*
-     * Multi-stop sine approximation with linear interpolation.
-     * Encodes the smooth curve manually so there are no per-interval easing
-     * discontinuities at the hold→exhale boundary or at the loop point.
-     * Values derived from: scale = 0.55 + 0.45 * (1 - cos(π * t/phase)) / 2
-     */
-    @keyframes onward-breathe {
-      0%     { transform: scale(0.55); }  /* inhale start */
-      7%     { transform: scale(0.62); }
-      14%    { transform: scale(0.78); }
-      21%    { transform: scale(0.93); }
-      28.5%  { transform: scale(1.00); } /* inhale complete */
-      57%    { transform: scale(1.00); } /* hold */
-      64%    { transform: scale(0.97); }  /* exhale start */
-      71.5%  { transform: scale(0.89); }
-      78.5%  { transform: scale(0.78); }
-      85.5%  { transform: scale(0.66); }
-      92.5%  { transform: scale(0.58); }
-      100%   { transform: scale(0.55); } /* exhale complete / loop */
+      transform: scale(0.55);
+      /* transform is driven by JS — see startBreathing() */
     }
 
     .breath-label {
@@ -306,17 +338,18 @@ window.OnwardPanel = (() => {
 
   let host           = null;
   let blurOverlay    = null;
+  let breathRing     = null; // ref to the ring element for JS-driven animation
   let breathTimer    = null;
   let nextBtnTimer   = null;
-  let breathStart    = null;
   let currentTab     = 0;
-  let reflectionText = ""; // captured from Tab 2 textarea, sent on completion
+  let sessionContent = null; // selected by pickSession() at the start of each show()
+  let reflectionText = "";   // captured from Tab 2 textarea, sent on completion
 
   // ---------------------------------------------------------------------------
   // DOM construction
   // ---------------------------------------------------------------------------
 
-  function buildPanel(shadow) {
+  function buildPanel(shadow, session) {
     const style = document.createElement("style");
     style.textContent = CSS;
     shadow.appendChild(style);
@@ -341,13 +374,13 @@ window.OnwardPanel = (() => {
     tab1.id = "onward-tab-1";
     const t1title = document.createElement("h2");
     t1title.className = "tab-title";
-    t1title.textContent = CONTENT.breathing.label;
+    t1title.textContent = session.breathing.label;
     const ring = document.createElement("div");
     ring.className = "breath-ring";
     const breathLabelEl = document.createElement("p");
     breathLabelEl.className = "breath-label";
     breathLabelEl.id = "onward-breath-label";
-    breathLabelEl.textContent = "Breathe in";
+    breathLabelEl.textContent = session.breathing.phases[0].cue;
     tab1.appendChild(t1title);
     tab1.appendChild(ring);
     tab1.appendChild(breathLabelEl);
@@ -359,10 +392,10 @@ window.OnwardPanel = (() => {
     tab2.id = "onward-tab-2";
     const t2title = document.createElement("h2");
     t2title.className = "tab-title";
-    t2title.textContent = CONTENT.reflection.label;
+    t2title.textContent = "A moment to reflect";
     const prompt = document.createElement("p");
     prompt.className = "prompt";
-    prompt.textContent = CONTENT.reflection.prompt;
+    prompt.textContent = session.reflection;
     const textarea = document.createElement("textarea");
     textarea.className = "reflection-input";
     textarea.id = "onward-reflection-input";
@@ -384,10 +417,10 @@ window.OnwardPanel = (() => {
     tab3.id = "onward-tab-3";
     const t3title = document.createElement("h2");
     t3title.className = "tab-title";
-    t3title.textContent = CONTENT.checklist.label;
+    t3title.textContent = session.checklist.label;
     const list = document.createElement("ul");
     list.className = "checklist";
-    CONTENT.checklist.items.forEach(item => {
+    session.checklist.items.forEach(item => {
       const li = document.createElement("li");
       const label = document.createElement("label");
       const checkbox = document.createElement("input");
@@ -420,6 +453,70 @@ window.OnwardPanel = (() => {
   }
 
   // ---------------------------------------------------------------------------
+  // Breathing animation — JS-driven CSS transitions
+  // ---------------------------------------------------------------------------
+
+  // Maps phase count to a semantic type for each slot. The type controls
+  // whether the ring should animate (inhale/exhale) or hold its position.
+  function phaseTypes(count) {
+    if (count === 2) return ["inhale", "exhale"];
+    if (count === 3) return ["inhale", "hold-top", "exhale"];
+    return ["inhale", "hold-top", "exhale", "hold-bottom"];
+  }
+
+  // Drives the breathing ring via CSS transitions on a setTimeout chain.
+  // Each phase updates the cue label and either transitions the ring to its
+  // target scale or holds it steady. Guards against the panel being removed
+  // mid-cycle via null checks on breathRing.
+  function startBreathing(phases) {
+    if (!breathRing) return;
+
+    const labelEl = breathRing.parentElement?.querySelector(".breath-label");
+    const types   = phaseTypes(phases.length);
+    let phaseIdx  = 0;
+
+    // Start at rest with no transition so the first phase fires cleanly.
+    breathRing.style.transition = "none";
+    breathRing.style.transform  = "scale(0.55)";
+
+    function runPhase() {
+      if (!breathRing) return; // panel removed mid-cycle
+
+      const { cue, ms } = phases[phaseIdx % phases.length];
+      const type        = types[phaseIdx % types.length];
+
+      if (labelEl) labelEl.textContent = cue;
+
+      if (type === "inhale" || type === "exhale") {
+        const target = type === "inhale" ? 1.0 : 0.55;
+        breathRing.style.transition = `transform ${ms}ms ease-in-out`;
+        // rAF ensures the new transition property is committed before the
+        // transform change triggers it.
+        requestAnimationFrame(() => {
+          if (breathRing) breathRing.style.transform = `scale(${target})`;
+        });
+      }
+      // Hold phases: label already updated above; ring stays at current scale.
+
+      phaseIdx++;
+      breathTimer = setTimeout(runPhase, ms);
+    }
+
+    // Double-rAF so the initial 'none' transition is painted before the first
+    // phase reintroduces a transition, preventing a spurious first-frame jump.
+    requestAnimationFrame(() => requestAnimationFrame(runPhase));
+  }
+
+  function stopBreathing() {
+    clearTimeout(breathTimer);
+    breathTimer = null;
+    if (breathRing) {
+      breathRing.style.transition = "none";
+      breathRing.style.transform  = "scale(0.55)";
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Tab logic
   // ---------------------------------------------------------------------------
 
@@ -429,26 +526,6 @@ window.OnwardPanel = (() => {
       if (i + 1 < tabIndex)        dot.classList.add("done");
       else if (i + 1 === tabIndex) dot.classList.add("active");
     });
-  }
-
-  function startBreathLabel(shadow) {
-    const label = shadow.getElementById("onward-breath-label");
-    if (!label) return;
-    breathStart = Date.now();
-    function tick() {
-      const elapsed = (Date.now() - breathStart) % CONTENT.breathing.cycleMs;
-      if (elapsed < 4_000)      label.textContent = "Breathe in";
-      else if (elapsed < 8_000) label.textContent = "Hold";
-      else                      label.textContent = "Breathe out";
-    }
-    tick();
-    breathTimer = setInterval(tick, 100);
-  }
-
-  function stopBreathLabel() {
-    clearInterval(breathTimer);
-    breathTimer = null;
-    breathStart = null;
   }
 
   // Tab 1: 45-second timer before Next appears.
@@ -523,10 +600,10 @@ window.OnwardPanel = (() => {
     updateProgress(shadow, tabIndex);
 
     if (tabIndex === 1) {
-      startBreathLabel(shadow);
+      startBreathing(sessionContent.breathing.phases);
       armTab1(nextBtn);
     } else {
-      stopBreathLabel();
+      stopBreathing();
       if (tabIndex === 2) armTab2(shadow, nextBtn);
       if (tabIndex === 3) armTab3(shadow, nextBtn);
     }
@@ -537,6 +614,19 @@ window.OnwardPanel = (() => {
   // ---------------------------------------------------------------------------
 
   function complete() {
+    // Notify background: reset budget and store the reflection if one was written.
+    // Sent before the cleanup timeout so sessionContent is still accessible.
+    chrome.runtime.sendMessage({
+      type: MESSAGES.SESSION_COMPLETE,
+      reflection: reflectionText
+        ? { prompt: sessionContent?.reflection, response: reflectionText, timestamp: Date.now() }
+        : null,
+    }, () => {
+      if (chrome.runtime.lastError) {
+        console.warn("[Onward] Could not send SESSION_COMPLETE:", chrome.runtime.lastError.message);
+      }
+    });
+
     // Fade the blur overlay out (faster than fade-in — user wants back in)
     if (blurOverlay) {
       blurOverlay.style.transition = `opacity ${BLUR_OUT_DURATION_MS}ms ease`;
@@ -554,25 +644,15 @@ window.OnwardPanel = (() => {
       host?.remove();
       blurOverlay    = null;
       host           = null;
+      breathRing     = null;
+      sessionContent = null;
       reflectionText = "";
-      stopBreathLabel();
+      stopBreathing();
       clearTimeout(nextBtnTimer);
       nextBtnTimer   = null;
       currentTab     = 0;
       OnwardPanel._active = false;
     }, cleanupDelay);
-
-    // Notify background: reset budget and store the reflection if one was written
-    chrome.runtime.sendMessage({
-      type: MESSAGES.SESSION_COMPLETE,
-      reflection: reflectionText
-        ? { prompt: CONTENT.reflection.prompt, response: reflectionText, timestamp: Date.now() }
-        : null,
-    }, () => {
-      if (chrome.runtime.lastError) {
-        console.warn("[Onward] Could not send SESSION_COMPLETE:", chrome.runtime.lastError.message);
-      }
-    });
   }
 
   // ---------------------------------------------------------------------------
@@ -587,6 +667,7 @@ window.OnwardPanel = (() => {
       this._active = true;
       currentTab     = 1;
       reflectionText = "";
+      sessionContent = pickSession();
 
       console.log("[Onward] Showing focus panel.");
 
@@ -599,15 +680,15 @@ window.OnwardPanel = (() => {
       blurOverlay = document.createElement("div");
       blurOverlay.id = "onward-blur-overlay";
       Object.assign(blurOverlay.style, {
-        position:          "fixed",
-        inset:             "0",
-        zIndex:            "2147483646",
-        backdropFilter:    "blur(8px)",
+        position:             "fixed",
+        inset:                "0",
+        zIndex:               "2147483646",
+        backdropFilter:       "blur(8px)",
         WebkitBackdropFilter: "blur(8px)",
-        background:        "rgba(250, 249, 246, 0.15)", // faint warm tint
-        opacity:           "0",
-        transition:        `opacity ${BLUR_DURATION_MS}ms ease`,
-        pointerEvents:     "all", // block interaction with the page behind it
+        background:           "rgba(250, 249, 246, 0.15)", // faint warm tint
+        opacity:              "0",
+        transition:           `opacity ${BLUR_DURATION_MS}ms ease`,
+        pointerEvents:        "all", // block interaction with the page behind it
       });
       document.documentElement.appendChild(blurOverlay);
 
@@ -624,8 +705,11 @@ window.OnwardPanel = (() => {
       host = document.createElement("div");
       host.id = "onward-panel-host";
       const shadow = host.attachShadow({ mode: "open" });
-      const { panel, nextBtn } = buildPanel(shadow);
+      const { panel, nextBtn } = buildPanel(shadow, sessionContent);
       document.documentElement.appendChild(host);
+
+      // Store ring ref for JS-driven breathing animation
+      breathRing = shadow.querySelector(".breath-ring");
 
       // --- Fade panel in after blur settles ---
       setTimeout(() => {
