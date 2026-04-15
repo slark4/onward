@@ -4,7 +4,7 @@ A Chrome extension that interrupts time on monitored sites with a guided 3-minut
 
 ## Current Phase
 
-**Phase 4 — Content Pool:** Build `src/shared/content_pool.json` with the full set of breathing cues, reflection prompts, and grounding checklist items. Update `panel.js` to load the pool and select content randomly each session. Content lives in `content_pool.json` so it can be expanded without touching logic.
+**Phase 5 — Settings & Onboarding:** Build the options page (site selection, budget picker, first-run onboarding flow) and the popup (today's stats, quick access to settings). Implement the emergency skip flow: reason input, skip counter, daily reset at local midnight.
 
 ## Key Constraints
 
