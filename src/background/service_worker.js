@@ -124,15 +124,18 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   console.log("[Onward] Installed/updated. Registering tick alarm.");
   await chrome.alarms.create(ALARM_NAME, { periodInMinutes: TICK_INTERVAL_MINUTES });
 
-  // On a fresh install, open the options page to start onboarding.
-  if (details.reason === "install") {
+  // Open the options page whenever the extension loads and onboarding hasn't
+  // been completed. Checking state.onboarded rather than details.reason handles
+  // both genuine first installs and developer reloads after storage.clear().
+  const installState = await Storage.getState();
+  if (!installState.onboarded) {
     chrome.tabs.create({ url: chrome.runtime.getURL("src/options/options.html") });
   }
 
   // Inject the content script into any monitored tabs that were already open
-  // before the extension was installed or updated. Read state once and match
-  // inline to avoid a storage read per tab.
-  const state = await Storage.getState();
+  // before the extension was installed or updated. Reuse installState — no
+  // second storage read needed.
+  const state = installState;
   const allTabs = await chrome.tabs.query({});
   for (const tab of allTabs) {
     const hostname = hostnameFromUrl(tab.url);
