@@ -1,41 +1,299 @@
-/* Onward Options Page */
+/* Onward — Options Page */
 
-* {
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
 body {
-  font-family: "Inter", "Source Sans Pro", sans-serif;
-  background-color: #FAF9F6;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: #FAF9F6;
   color: #2E3A59;
-  padding: 48px;
-  max-width: 640px;
-  margin: 0 auto;
+  min-height: 100vh;
 }
 
-.options-title {
-  font-family: "Lora", Georgia, serif;
+/* ---- View containers ---- */
+
+.view {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 64px 40px 80px;
+}
+
+.view.hidden { display: none; }
+
+/* ---- Shared typography ---- */
+
+.page-title {
+  font-family: Georgia, serif;
   font-size: 32px;
-  font-weight: 600;
+  font-weight: 400;
+  color: #2E3A59;
   margin-bottom: 4px;
 }
 
-.options-subtitle {
-  font-size: 16px;
-  color: #87A96B;
-  margin-bottom: 40px;
-}
-
-.placeholder-section {
-  background: #F0EFE9;
-  border-radius: 8px;
-  padding: 24px;
-}
-
-.placeholder {
+.page-tagline {
   font-size: 14px;
-  color: #999;
+  color: #87A96B;
+  margin-bottom: 48px;
+}
+
+/* ---- Onboarding progress dots ---- */
+
+.ob-progress {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 48px;
+}
+
+.ob-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #D0D5E0;
+  transition: background 300ms ease;
+}
+
+.ob-dot.active { background: #2E3A59; }
+.ob-dot.done   { background: #87A96B; }
+
+/* ---- Onboarding steps ---- */
+
+.ob-step.hidden { display: none; }
+
+.step-title {
+  font-family: Georgia, serif;
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: #2E3A59;
+  margin-bottom: 12px;
+}
+
+.step-hint {
+  font-size: 14px;
+  color: #8A95A8;
+  margin-bottom: 32px;
+}
+
+.ob-body {
+  font-size: 16px;
+  line-height: 1.75;
+  color: #2E3A59;
+  max-width: 420px;
+  margin-bottom: 16px;
+}
+
+.ob-footer {
+  margin-top: 48px;
+}
+
+/* ---- Site toggle buttons (used in onboarding and settings) ---- */
+
+.site-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.site-toggle {
+  padding: 10px 20px;
+  border-radius: 100px;
+  border: 1.5px solid #D0D5E0;
+  background: #FFFFFF;
+  color: #2E3A59;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease, color 150ms ease;
+}
+
+.site-toggle:hover {
+  border-color: #87A96B;
+}
+
+.site-toggle.selected {
+  background: #87A96B;
+  border-color: #87A96B;
+  color: #FFFFFF;
+}
+
+/* ---- Budget options (onboarding Step 3) ---- */
+
+.budget-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.budget-option {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  border: 1.5px solid #D0D5E0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease;
+  font-size: 15px;
+  font-weight: 500;
+  color: #2E3A59;
+  user-select: none;
+}
+
+.budget-option:has(input:checked) {
+  border-color: #87A96B;
+  background: rgba(135, 169, 107, 0.06);
+}
+
+.budget-option input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  border-radius: 50%;
+  border: 2px solid #C0C8D8;
+  transition: border-color 150ms ease;
+  /* checked state: sage fill via box-shadow inset */
+}
+
+.budget-option input[type="radio"]:checked {
+  border-color: #87A96B;
+  background: radial-gradient(circle, #87A96B 45%, transparent 45%);
+}
+
+/* ---- Primary button ---- */
+
+.btn-primary {
+  background: #2E3A59;
+  color: #FAF9F6;
+  border: none;
+  border-radius: 8px;
+  padding: 13px 32px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 150ms ease, opacity 150ms ease;
+}
+
+.btn-primary:hover:not(:disabled) { background: #1E2A45; }
+
+.btn-primary:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* ---- Settings view ---- */
+
+.page-header {
+  margin-bottom: 48px;
+}
+
+.settings-section {
+  margin-bottom: 44px;
+}
+
+.section-title {
+  font-family: Georgia, serif;
+  font-size: 17px;
+  font-weight: 400;
+  color: #2E3A59;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #E8EBF0;
+}
+
+/* Configured site rows */
+.site-list {
+  list-style: none;
+}
+
+.site-row {
+  display: flex;
+  align-items: center;
+  padding: 13px 0;
+  border-bottom: 1px solid #F0EEE9;
+}
+
+.site-row:last-child {
+  border-bottom: none;
+}
+
+.site-name {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.budget-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: #F0EFE9
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%232E3A59' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")
+    no-repeat right 10px center;
+  border: 1.5px solid #D0D5E0;
+  border-radius: 6px;
+  padding: 6px 30px 6px 12px;
+  font-family: inherit;
+  font-size: 13px;
+  color: #2E3A59;
+  cursor: pointer;
+  margin-right: 12px;
+  transition: border-color 150ms ease;
+}
+
+.budget-select:focus {
+  outline: none;
+  border-color: #87A96B;
+}
+
+.btn-remove {
+  background: none;
+  border: none;
+  color: #B0B8C8;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: color 150ms ease, background 150ms ease;
+}
+
+.btn-remove:hover {
+  color: #C96F4A;
+  background: rgba(201, 111, 74, 0.08);
+}
+
+.empty-hint {
+  font-size: 14px;
+  color: #8A95A8;
   font-style: italic;
+  padding: 6px 0;
+}
+
+/* Danger zone */
+.settings-footer {
+  padding-top: 8px;
+}
+
+.btn-danger {
+  background: none;
+  border: 1.5px solid #D0D5E0;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-family: inherit;
+  font-size: 14px;
+  color: #8A95A8;
+  cursor: pointer;
+  transition: border-color 150ms ease, color 150ms ease, background 150ms ease;
+}
+
+.btn-danger:hover {
+  border-color: #C96F4A;
+  color: #C96F4A;
+  background: rgba(201, 111, 74, 0.05);
 }

@@ -1,5 +1,6 @@
 // Onward — Background Service Worker
 // Handles time tracking, alarm ticks, interrupt triggering, and budget resets.
+// Site configuration is read from chrome.storage.local (set via the options page).
 
 importScripts("../shared/messages.js", "../shared/storage.js");
 
@@ -7,9 +8,10 @@ importScripts("../shared/messages.js", "../shared/storage.js");
 // Configuration
 // ---------------------------------------------------------------------------
 
-// Hard-coded for Phase 2 testing. Phase 5 will read this from user settings.
-const MONITORED_SITES = {
-  "youtube.com": { budgetSeconds: 120 }, // 2 minutes
+// Maps secondary hostnames to their canonical storage key.
+// twitter.com redirects to x.com but both hostnames still appear in the wild.
+const HOSTNAME_ALIASES = {
+  "twitter.com": "x.com",
 };
 
 const ALARM_NAME = "onward-tick";
@@ -27,27 +29,35 @@ function hostnameFromUrl(url) {
   }
 }
 
+// Returns "YYYY-MM-DD" in local time. Used for lazy midnight resets.
+function todayString() {
+  return new Date().toLocaleDateString("en-CA");
+}
+
 // Returns the monitored site key (e.g. "youtube.com") for a given hostname,
-// or null if the hostname isn't monitored.
-function monitoredSiteKey(hostname) {
+// or null if the hostname is not in the user's configured site list.
+// Resolves hostname aliases before checking storage.
+async function monitoredSiteKey(hostname) {
   if (!hostname) return null;
-  for (const key of Object.keys(MONITORED_SITES)) {
-    if (hostname === key || hostname.endsWith("." + key)) return key;
+  const resolved = HOSTNAME_ALIASES[hostname] ?? hostname;
+  const state = await Storage.getState();
+  for (const key of Object.keys(state.sites)) {
+    if (resolved === key || resolved.endsWith("." + key)) return key;
   }
   return null;
 }
 
-// Seed storage with default values for a site the first time we see it.
-async function ensureSiteDefaults(siteKey) {
+// Increments a field in todayStats, resetting the whole object if the
+// calendar date has rolled over since the last write.
+async function incrementTodayStat(field) {
+  const today = todayString();
   const state = await Storage.getState();
-  if (!state.sites[siteKey]) {
-    await Storage.updateSiteState(siteKey, {
-      budgetSeconds: MONITORED_SITES[siteKey].budgetSeconds,
-      accumulatedSeconds: 0,
-      sessionStart: null,
-      interrupted: false,
-    });
-  }
+  const current = (state.todayStats?.date === today)
+    ? state.todayStats
+    : { date: today, sessionsCompleted: 0, sessionsSkipped: 0 };
+  await Storage.updateState({
+    todayStats: { ...current, [field]: (current[field] ?? 0) + 1 },
+  });
 }
 
 // Calculate elapsed time since sessionStart, add it to accumulatedSeconds,
@@ -110,16 +120,27 @@ async function checkBudget(siteKey, tabId) {
 // Lifecycle
 // ---------------------------------------------------------------------------
 
-chrome.runtime.onInstalled.addListener(async () => {
+chrome.runtime.onInstalled.addListener(async (details) => {
   console.log("[Onward] Installed/updated. Registering tick alarm.");
   await chrome.alarms.create(ALARM_NAME, { periodInMinutes: TICK_INTERVAL_MINUTES });
 
+  // On a fresh install, open the options page to start onboarding.
+  if (details.reason === "install") {
+    chrome.tabs.create({ url: chrome.runtime.getURL("src/options/options.html") });
+  }
+
   // Inject the content script into any monitored tabs that were already open
-  // before the extension was installed or updated. Without this, those tabs
-  // won't have a content script and the interrupt message will fail to deliver.
+  // before the extension was installed or updated. Read state once and match
+  // inline to avoid a storage read per tab.
+  const state = await Storage.getState();
   const allTabs = await chrome.tabs.query({});
   for (const tab of allTabs) {
-    if (!monitoredSiteKey(hostnameFromUrl(tab.url))) continue;
+    const hostname = hostnameFromUrl(tab.url);
+    if (!hostname) continue;
+    const resolved = HOSTNAME_ALIASES[hostname] ?? hostname;
+    const siteKey = Object.keys(state.sites)
+      .find(k => resolved === k || resolved.endsWith("." + k));
+    if (!siteKey) continue;
     try {
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
@@ -134,12 +155,28 @@ chrome.runtime.onInstalled.addListener(async () => {
 });
 
 chrome.runtime.onStartup.addListener(async () => {
-  console.log("[Onward] Browser started. Clearing stale session state.");
+  console.log("[Onward] Browser started.");
+
+  const state = await Storage.getState();
+  const today = todayString();
+
+  // Proactively reset daily counters if the day has changed. This ensures the
+  // popup shows correct values from the first moment of the day, without
+  // waiting for the first user action to trigger a lazy reset.
+  const updates = {};
+  if (state.skipDay !== today) {
+    updates.skipsUsed = 0;
+    updates.skipDay   = today;
+  }
+  if (state.todayStats?.date !== today) {
+    updates.todayStats = { date: today, sessionsCompleted: 0, sessionsSkipped: 0 };
+  }
+  if (Object.keys(updates).length > 0) {
+    await Storage.updateState(updates);
+  }
 
   // Any sessionStart left in storage is from a previous browser session.
-  // We can't know how long ago the user actually left the site, so we
-  // discard those timestamps rather than crediting potentially hours of time.
-  const state = await Storage.getState();
+  // Discard rather than crediting potentially hours of elapsed time.
   for (const siteKey of Object.keys(state.sites)) {
     if (state.sites[siteKey].sessionStart) {
       await Storage.updateSiteState(siteKey, { sessionStart: null });
@@ -166,22 +203,18 @@ chrome.tabs.onActivated.addListener(async ({ tabId }) => {
     return; // Tab closed before we could read it
   }
 
-  const siteKey = monitoredSiteKey(hostnameFromUrl(tab.url));
+  const siteKey = await monitoredSiteKey(hostnameFromUrl(tab.url));
   const state = await Storage.getState();
 
-  // Always flush any in-progress session on a tab switch — this captures the
-  // partial elapsed time between the last alarm tick and now.
+  // Always flush any in-progress session on a tab switch.
   if (state.activeSiteKey) {
     await stopTracking();
   }
 
   if (siteKey) {
-    await ensureSiteDefaults(siteKey);
     const fresh = await Storage.getState();
-    if (fresh.sites[siteKey].interrupted) {
+    if (fresh.sites[siteKey]?.interrupted) {
       // Budget already exceeded — re-trigger the interrupt immediately.
-      // Covers: user opened a second tab to bypass the panel (spec §3.4),
-      // or switched back to an interrupted tab from another tab.
       await Storage.updateState({ activeSiteKey: siteKey, activeTabId: tabId });
       console.log(`[Onward] Activated interrupted tab — re-triggering interrupt for ${siteKey}.`);
       chrome.tabs.sendMessage(tabId, { type: MESSAGES.INTERRUPT_TRIGGERED }, () => {
@@ -206,7 +239,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     }
     if (!activeTabs.length || activeTabs[0].id !== tabId) return;
 
-    const newSiteKey = monitoredSiteKey(hostnameFromUrl(changeInfo.url));
+    const newSiteKey = await monitoredSiteKey(hostnameFromUrl(changeInfo.url));
     const state = await Storage.getState();
 
     if (state.activeSiteKey && state.activeSiteKey !== newSiteKey) {
@@ -214,9 +247,8 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     }
 
     if (newSiteKey && newSiteKey !== state.activeSiteKey) {
-      await ensureSiteDefaults(newSiteKey);
       const fresh = await Storage.getState();
-      if (!fresh.sites[newSiteKey].interrupted) {
+      if (!fresh.sites[newSiteKey]?.interrupted) {
         await startTracking(newSiteKey, tabId);
       }
       // If interrupted, Branch 2 (status: 'complete') will re-trigger the panel
@@ -226,16 +258,14 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 
   // --- Branch 2: Page finished loading — catches refreshes ---
   // When a user refreshes mid-session, the content script reinitializes and the
-  // panel disappears. We detect the completed load here and re-send the interrupt
-  // so the panel reappears immediately. Only fires for the active tab.
+  // panel disappears. We detect the completed load here and re-send the interrupt.
   if (changeInfo.status === "complete" && tab.url) {
-    const siteKey = monitoredSiteKey(hostnameFromUrl(tab.url));
+    const siteKey = await monitoredSiteKey(hostnameFromUrl(tab.url));
     if (!siteKey) return;
 
     const state = await Storage.getState();
     if (!state.sites[siteKey]?.interrupted) return;
 
-    // Confirm this is the tab the user is currently looking at.
     let activeTabs;
     try {
       activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -254,19 +284,16 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   }
 });
 
-// Closing a tab mid-session counts as a full interrupt — no bonus time.
-// We preserve interrupted:true so the panel reappears on the next visit.
+// Closing a tab mid-session preserves interrupted:true so the panel
+// reappears on the next visit.
 chrome.tabs.onRemoved.addListener(async (tabId) => {
   const state = await Storage.getState();
   if (tabId !== state.activeTabId) return;
 
   if (state.activeSiteKey && state.sites[state.activeSiteKey]?.interrupted) {
-    // Mid-session close: clear active tracking but leave interrupted:true.
-    // Do NOT flush elapsed time — the budget is already exceeded.
     await Storage.updateState({ activeSiteKey: null, activeTabId: null });
     console.log(`[Onward] Tab closed mid-session — interrupt preserved for ${state.activeSiteKey}.`);
   } else {
-    // Normal close: flush elapsed time and clear tracking.
     await stopTracking();
   }
 });
@@ -328,6 +355,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           });
           console.log(`[Onward] Session complete — budget reset for ${state.activeSiteKey}`);
         }
+        await incrementTodayStat("sessionsCompleted");
         sendResponse({ status: "ok" });
       })();
       return true; // keep channel open for async response

@@ -7,18 +7,25 @@
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <div class="popup-container">
+
+  <div class="popup-header">
     <h1 class="popup-title">Onward</h1>
     <p class="popup-tagline">A reset, not a block.</p>
-
-    <div class="popup-status">
-      <!-- Phase 5: today's stats and per-site time remaining will live here -->
-      <p class="placeholder">Stats coming in Phase 5.</p>
-    </div>
-
-    <a href="../options/options.html" target="_blank" class="settings-link">Open Settings</a>
   </div>
 
+  <section class="popup-stats" id="popup-stats">
+    <!-- populated by popup.js -->
+  </section>
+
+  <section class="popup-sites" id="popup-sites">
+    <!-- populated by popup.js -->
+  </section>
+
+  <div class="popup-footer">
+    <button id="btn-settings" class="settings-btn">Settings</button>
+  </div>
+
+  <script src="../shared/storage.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

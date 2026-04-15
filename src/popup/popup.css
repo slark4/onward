@@ -1,59 +1,136 @@
-/* Onward Popup */
+/* Onward — Popup */
 
-* {
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
 body {
-  width: 350px;
-  font-family: "Inter", "Source Sans Pro", sans-serif;
-  background-color: #FAF9F6;
+  width: 320px;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: #FAF9F6;
   color: #2E3A59;
-  padding: 24px;
+}
+
+/* ---- Header ---- */
+
+.popup-header {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid #ECEAE4;
 }
 
 .popup-title {
-  font-family: "Lora", Georgia, serif;
-  font-size: 22px;
-  font-weight: 600;
-  margin-bottom: 4px;
+  font-family: Georgia, serif;
+  font-size: 20px;
+  font-weight: 400;
+  color: #2E3A59;
+  margin-bottom: 2px;
 }
 
 .popup-tagline {
-  font-size: 13px;
+  font-size: 12px;
   color: #87A96B;
-  margin-bottom: 20px;
 }
 
-.popup-status {
-  background: #F0EFE9;
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 20px;
-  min-height: 80px;
+/* ---- Stats row ---- */
+
+.popup-stats {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #ECEAE4;
 }
 
-.placeholder {
+.stat-cell {
+  flex: 1;
+  padding: 14px 20px;
+  border-right: 1px solid #ECEAE4;
+}
+
+.stat-cell:last-child {
+  border-right: none;
+}
+
+.stat-value {
+  display: block;
+  font-size: 22px;
+  font-weight: 600;
+  color: #2E3A59;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  display: block;
+  font-size: 11px;
+  color: #8A95A8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ---- Site rows ---- */
+
+.popup-sites {
+  padding: 4px 0;
+}
+
+.site-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+}
+
+.site-row + .site-row {
+  border-top: 1px solid #F3F1EC;
+}
+
+.site-name {
   font-size: 13px;
-  color: #999;
+  font-weight: 500;
+  color: #2E3A59;
+}
+
+.site-status {
+  font-size: 12px;
+  color: #8A95A8;
+}
+
+.site-status.interrupted {
+  color: #C96F4A;
+}
+
+.no-sites {
+  padding: 16px 20px;
+  font-size: 13px;
+  color: #8A95A8;
   font-style: italic;
 }
 
-.settings-link {
-  display: block;
-  text-align: center;
-  font-size: 13px;
-  color: #2E3A59;
-  text-decoration: none;
-  border: 1px solid #2E3A59;
-  border-radius: 6px;
-  padding: 8px 12px;
-  transition: background 0.15s;
+/* ---- Footer ---- */
+
+.popup-footer {
+  padding: 12px 20px;
+  border-top: 1px solid #ECEAE4;
 }
 
-.settings-link:hover {
+.settings-btn {
+  display: block;
+  width: 100%;
+  padding: 9px 12px;
+  background: none;
+  border: 1.5px solid #D0D5E0;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  color: #2E3A59;
+  cursor: pointer;
+  text-align: center;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.settings-btn:hover {
   background: #2E3A59;
+  border-color: #2E3A59;
   color: #FAF9F6;
 }

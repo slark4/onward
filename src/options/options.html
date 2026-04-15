@@ -7,16 +7,85 @@
   <link rel="stylesheet" href="options.css">
 </head>
 <body>
-  <div class="options-container">
-    <h1 class="options-title">Onward</h1>
-    <p class="options-subtitle">Settings</p>
 
-    <div class="placeholder-section">
-      <!-- Phase 5: site selection, budget picker, onboarding flow, stats -->
-      <p class="placeholder">Full settings and onboarding coming in Phase 5.</p>
+  <!-- ================================================================
+       ONBOARDING VIEW
+       Shown on first install only. Three sequential steps.
+       ================================================================ -->
+  <div id="view-onboarding" class="view hidden">
+
+    <div class="ob-progress" aria-hidden="true">
+      <span class="ob-dot active"></span>
+      <span class="ob-dot"></span>
+      <span class="ob-dot"></span>
     </div>
-  </div>
 
+    <!-- Step 1: Welcome -->
+    <div id="ob-step-1" class="ob-step">
+      <h1 class="page-title">Onward</h1>
+      <p class="page-tagline">A reset, not a block.</p>
+      <p class="ob-body">
+        When you've spent too long on a site, Onward pauses the page and
+        walks you through a short grounding session — a breath, a reflection,
+        a quick body check — before you continue.
+      </p>
+      <p class="ob-body">It takes about 30 seconds to set up.</p>
+      <div class="ob-footer">
+        <button id="btn-ob-1" class="btn-primary">Get started</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Site selection -->
+    <div id="ob-step-2" class="ob-step hidden">
+      <h2 class="step-title">Which sites should Onward monitor?</h2>
+      <p class="step-hint">Select at least one.</p>
+      <div id="ob-site-toggles" class="site-toggles"></div>
+      <div class="ob-footer">
+        <button id="btn-ob-2" class="btn-primary" disabled>Next</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Budget -->
+    <div id="ob-step-3" class="ob-step hidden">
+      <h2 class="step-title">How long can you spend on each site before a reset?</h2>
+      <p class="step-hint">This applies to each site you selected.</p>
+      <div id="ob-budget-options" class="budget-options"></div>
+      <div class="ob-footer">
+        <button id="btn-ob-3" class="btn-primary">Start monitoring</button>
+      </div>
+    </div>
+
+  </div><!-- /view-onboarding -->
+
+
+  <!-- ================================================================
+       SETTINGS VIEW
+       Shown after onboarding is complete.
+       ================================================================ -->
+  <div id="view-settings" class="view hidden">
+
+    <header class="page-header">
+      <h1 class="page-title">Onward</h1>
+      <p class="page-tagline">Settings</p>
+    </header>
+
+    <section class="settings-section">
+      <h2 class="section-title">Monitored sites</h2>
+      <ul id="configured-sites" class="site-list"></ul>
+    </section>
+
+    <section class="settings-section">
+      <h2 class="section-title">Add a site</h2>
+      <div id="add-site-toggles" class="site-toggles"></div>
+    </section>
+
+    <section class="settings-section settings-footer">
+      <button id="btn-reset-all" class="btn-danger">Reset all data</button>
+    </section>
+
+  </div><!-- /view-settings -->
+
+  <script src="../shared/storage.js"></script>
   <script src="options.js"></script>
 </body>
 </html>
