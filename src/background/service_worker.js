@@ -114,6 +114,24 @@ async function checkBudget(siteKey, tabId) {
 chrome.runtime.onInstalled.addListener(async () => {
   console.log("[Onward] Installed/updated. Registering tick alarm.");
   await chrome.alarms.create(ALARM_NAME, { periodInMinutes: TICK_INTERVAL_MINUTES });
+
+  // Inject the content script into any monitored tabs that were already open
+  // before the extension was installed or updated. Without this, those tabs
+  // won't have a content script and the interrupt message will fail to deliver.
+  const allTabs = await chrome.tabs.query({});
+  for (const tab of allTabs) {
+    if (!monitoredSiteKey(hostnameFromUrl(tab.url))) continue;
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ["src/shared/messages.js", "src/content/content_script.js"],
+      });
+      console.log(`[Onward] Injected content script into pre-existing tab ${tab.id} (${tab.url})`);
+    } catch (err) {
+      // Expected on privileged pages (chrome://, new tab, etc.) — safe to ignore.
+      console.warn(`[Onward] Could not inject into tab ${tab.id}:`, err.message);
+    }
+  }
 });
 
 chrome.runtime.onStartup.addListener(async () => {
