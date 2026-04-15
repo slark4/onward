@@ -22,7 +22,7 @@
   "content_scripts": [
     {
       "matches": ["*://*.youtube.com/*"],
-      "js": ["src/shared/messages.js", "src/content/content_script.js"],
+      "js": ["src/shared/messages.js", "src/content/panel.js", "src/content/content_script.js"],
       "run_at": "document_idle"
     }
   ],

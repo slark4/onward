@@ -179,40 +179,96 @@ chrome.tabs.onActivated.addListener(async ({ tabId }) => {
   if (siteKey) {
     await ensureSiteDefaults(siteKey);
     const fresh = await Storage.getState();
-    if (!fresh.sites[siteKey].interrupted) {
+    if (fresh.sites[siteKey].interrupted) {
+      // Budget already exceeded — re-trigger the interrupt immediately.
+      // Covers: user opened a second tab to bypass the panel (spec §3.4),
+      // or switched back to an interrupted tab from another tab.
+      await Storage.updateState({ activeSiteKey: siteKey, activeTabId: tabId });
+      console.log(`[Onward] Activated interrupted tab — re-triggering interrupt for ${siteKey}.`);
+      chrome.tabs.sendMessage(tabId, { type: MESSAGES.INTERRUPT_TRIGGERED }, () => {
+        if (chrome.runtime.lastError) {
+          console.warn("[Onward] Could not re-trigger interrupt on activation:", chrome.runtime.lastError.message);
+        }
+      });
+    } else {
       await startTracking(siteKey, tabId);
     }
   }
 });
 
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
-  // Only care about URL changes (catches YouTube's SPA navigation).
-  if (!changeInfo.url) return;
-
-  // Only act on the currently focused tab.
-  let activeTabs;
-  try {
-    activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
-  } catch {
-    return;
-  }
-  if (!activeTabs.length || activeTabs[0].id !== tabId) return;
-
-  const newSiteKey = monitoredSiteKey(hostnameFromUrl(changeInfo.url));
-  const state = await Storage.getState();
-
-  // Stop tracking if leaving (or changing) the monitored site.
-  if (state.activeSiteKey && state.activeSiteKey !== newSiteKey) {
-    await stopTracking();
-  }
-
-  // Start tracking if arriving on a monitored site not already being tracked.
-  if (newSiteKey && newSiteKey !== state.activeSiteKey) {
-    await ensureSiteDefaults(newSiteKey);
-    const fresh = await Storage.getState();
-    if (!fresh.sites[newSiteKey].interrupted) {
-      await startTracking(newSiteKey, tabId);
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  // --- Branch 1: URL changed — SPA navigation on the active tab ---
+  if (changeInfo.url) {
+    let activeTabs;
+    try {
+      activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    } catch {
+      return;
     }
+    if (!activeTabs.length || activeTabs[0].id !== tabId) return;
+
+    const newSiteKey = monitoredSiteKey(hostnameFromUrl(changeInfo.url));
+    const state = await Storage.getState();
+
+    if (state.activeSiteKey && state.activeSiteKey !== newSiteKey) {
+      await stopTracking();
+    }
+
+    if (newSiteKey && newSiteKey !== state.activeSiteKey) {
+      await ensureSiteDefaults(newSiteKey);
+      const fresh = await Storage.getState();
+      if (!fresh.sites[newSiteKey].interrupted) {
+        await startTracking(newSiteKey, tabId);
+      }
+      // If interrupted, Branch 2 (status: 'complete') will re-trigger the panel
+      // once the page finishes loading.
+    }
+  }
+
+  // --- Branch 2: Page finished loading — catches refreshes ---
+  // When a user refreshes mid-session, the content script reinitializes and the
+  // panel disappears. We detect the completed load here and re-send the interrupt
+  // so the panel reappears immediately. Only fires for the active tab.
+  if (changeInfo.status === "complete" && tab.url) {
+    const siteKey = monitoredSiteKey(hostnameFromUrl(tab.url));
+    if (!siteKey) return;
+
+    const state = await Storage.getState();
+    if (!state.sites[siteKey]?.interrupted) return;
+
+    // Confirm this is the tab the user is currently looking at.
+    let activeTabs;
+    try {
+      activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    } catch {
+      return;
+    }
+    if (!activeTabs.length || activeTabs[0].id !== tabId) return;
+
+    console.log(`[Onward] Page loaded with pending interrupt for ${siteKey} — re-triggering.`);
+    await Storage.updateState({ activeSiteKey: siteKey, activeTabId: tabId });
+    chrome.tabs.sendMessage(tabId, { type: MESSAGES.INTERRUPT_TRIGGERED }, () => {
+      if (chrome.runtime.lastError) {
+        console.warn("[Onward] Could not re-trigger interrupt on page load:", chrome.runtime.lastError.message);
+      }
+    });
+  }
+});
+
+// Closing a tab mid-session counts as a full interrupt — no bonus time.
+// We preserve interrupted:true so the panel reappears on the next visit.
+chrome.tabs.onRemoved.addListener(async (tabId) => {
+  const state = await Storage.getState();
+  if (tabId !== state.activeTabId) return;
+
+  if (state.activeSiteKey && state.sites[state.activeSiteKey]?.interrupted) {
+    // Mid-session close: clear active tracking but leave interrupted:true.
+    // Do NOT flush elapsed time — the budget is already exceeded.
+    await Storage.updateState({ activeSiteKey: null, activeTabId: null });
+    console.log(`[Onward] Tab closed mid-session — interrupt preserved for ${state.activeSiteKey}.`);
+  } else {
+    // Normal close: flush elapsed time and clear tracking.
+    await stopTracking();
   }
 });
 
