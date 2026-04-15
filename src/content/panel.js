@@ -39,7 +39,7 @@ window.OnwardPanel = (() => {
   const BLUR_OUT_DURATION_MS = 1_000;  // fade-out on completion — faster exit feels right
   const PANEL_FADE_MS        = 500;
   const NEXT_BTN_DELAY_MS    = 45_000; // Tab 1: 45s before Next appears
-  const REFLECTION_MIN_CHARS = 150;    // Tab 2: minimum characters to unlock Next
+  const REFLECTION_MIN_CHARS = 80;     // Tab 2: minimum characters to unlock Next
 
   // ---------------------------------------------------------------------------
   // Styles (injected into Shadow DOM — fully isolated from the host page)
