@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — Onward</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: #FAF9F6;
+      color: #2E3A59;
+      line-height: 1.7;
+      padding: 48px 24px 80px;
+    }
+
+    .container {
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    .wordmark {
+      font-family: Georgia, serif;
+      font-size: 22px;
+      font-weight: 400;
+      color: #2E3A59;
+      text-decoration: none;
+      display: inline-block;
+      margin-bottom: 48px;
+    }
+
+    h1 {
+      font-family: Georgia, serif;
+      font-size: 32px;
+      font-weight: 400;
+      color: #2E3A59;
+      margin-bottom: 8px;
+    }
+
+    .updated {
+      font-size: 13px;
+      color: #8A95A8;
+      margin-bottom: 48px;
+    }
+
+    h2 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #2E3A59;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-top: 40px;
+      margin-bottom: 12px;
+    }
+
+    p {
+      font-size: 15px;
+      color: #3D4F6E;
+      margin-bottom: 16px;
+    }
+
+    p:last-child { margin-bottom: 0; }
+
+    .highlight {
+      background: #F0EDE8;
+      border-left: 3px solid #87A96B;
+      border-radius: 0 6px 6px 0;
+      padding: 16px 20px;
+      margin: 32px 0;
+    }
+
+    .highlight p {
+      margin: 0;
+      font-size: 15px;
+      color: #2E3A59;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid #ECEAE4;
+      margin: 48px 0 32px;
+    }
+
+    a {
+      color: #87A96B;
+      text-decoration: none;
+    }
+
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <a class="wordmark" href="#">Onward</a>
+
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated: April 2026</p>
+
+    <div class="highlight">
+      <p>Onward stores everything locally on your device. No data ever leaves your browser. There are no servers, no accounts, and no analytics.</p>
+    </div>
+
+    <h2>What Onward collects</h2>
+    <p>Onward stores the following information in your browser's local storage (<code>chrome.storage.local</code>):</p>
+    <p><strong>Site configuration</strong> — the websites you choose to monitor and the daily time budgets you set for each one.</p>
+    <p><strong>Usage data</strong> — time spent on monitored sites in the current session, accumulated daily totals, and whether a budget has been reached for the day.</p>
+    <p><strong>Session history</strong> — a count of completed and skipped sessions for the current calendar day, used to display today's stats in the extension popup. This resets at midnight.</p>
+    <p><strong>Skip log</strong> — the number of emergency skips used today and the reason you entered for each one. This also resets daily.</p>
+
+    <h2>Where your data goes</h2>
+    <p>Nowhere. All data is stored exclusively in <code>chrome.storage.local</code> on your own device. It is never transmitted to any server, never shared with any third party, and never used for advertising or analytics of any kind.</p>
+    <p>Onward has no backend, no user accounts, and no network requests beyond fetching its own bundled content file at startup.</p>
+
+    <h2>Permissions and why they are needed</h2>
+    <p><strong>storage</strong> — to save your site configuration, budgets, and daily stats locally on your device.</p>
+    <p><strong>alarms</strong> — to track time in the background using a periodic tick, so timing continues accurately while you switch tabs.</p>
+    <p><strong>tabs</strong> — to detect when you navigate to or away from a monitored site, so the timer starts and stops correctly.</p>
+    <p><strong>scripting</strong> — to inject the interrupt interface into monitored pages when your budget is reached.</p>
+    <p><strong>Host permissions for specific sites</strong> — Onward only requests access to the sites you choose to monitor (YouTube, Reddit, X, TikTok, Instagram). It has no access to any other websites.</p>
+
+    <h2>Data you can delete</h2>
+    <p>All data can be permanently deleted at any time from the Settings page inside the extension. The "Reset all data" button clears everything Onward has ever stored.</p>
+    <p>Uninstalling the extension also removes all stored data.</p>
+
+    <h2>Children's privacy</h2>
+    <p>Onward does not knowingly collect any information from anyone, including children. Because no data leaves your device, this policy applies equally to all users.</p>
+
+    <h2>Changes to this policy</h2>
+    <p>If this policy changes, the updated version will be posted at this URL with a revised date. Onward will never introduce data collection without updating this policy first.</p>
+
+    <hr>
+
+    <p>Questions? Reach out at <a href="mailto:slarkisaac7@gmail.com">slarkisaac7@gmail.com</a>.</p>
+
+  </div>
+</body>
+</html>
