@@ -363,6 +363,32 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       })();
       return true; // keep channel open for async response
 
+    case MESSAGES.SESSION_SKIPPED:
+      // Grant 5 more minutes (set accumulated to budget - 300), increment skip counter.
+      (async () => {
+        const state = await Storage.getState();
+        if (state.activeSiteKey) {
+          const site = state.sites[state.activeSiteKey];
+          const newAccumulated = Math.max(0, (site?.budgetSeconds ?? 0) - 300);
+          await Storage.updateSiteState(state.activeSiteKey, {
+            accumulatedSeconds: newAccumulated,
+            sessionStart: Date.now(),
+            interrupted: false,
+          });
+          console.log(`[Onward] Session skipped — ${state.activeSiteKey} granted 5 min.`);
+        }
+        // Lazy-reset skip counter if the day has rolled over.
+        const today = todayString();
+        const skipsUsed = (state.skipDay === today) ? (state.skipsUsed ?? 0) : 0;
+        await Storage.updateState({
+          skipsUsed: skipsUsed + 1,
+          skipDay:   today,
+        });
+        await incrementTodayStat("sessionsSkipped");
+        sendResponse({ status: "ok" });
+      })();
+      return true;
+
     default:
       console.warn("[Onward] Unknown message type:", message.type);
   }

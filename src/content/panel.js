@@ -92,6 +92,7 @@ window.OnwardPanel = (() => {
   const PANEL_FADE_MS        = 500;
   const NEXT_BTN_DELAY_MS    = 45_000; // Tab 1: 45s before Next appears
   const REFLECTION_MIN_CHARS = 80;     // Tab 2: minimum characters to unlock Next
+  const SKIP_MIN_CHARS       = 30;     // Skip confirmation: minimum reason length
 
   // ---------------------------------------------------------------------------
   // Styles (injected into Shadow DOM — fully isolated from the host page)
@@ -332,12 +333,147 @@ window.OnwardPanel = (() => {
     .next-btn:hover { background: #1E2A45; }
   `;
 
+  // Styles for the skip affordance (separate Shadow DOM, fixed bottom-right)
+  const SKIP_CSS = `
+    :host {
+      position: fixed;
+      bottom: 20px;
+      right: 24px;
+      z-index: 2147483647;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    .skip-link {
+      font-size: 11px;
+      color: #B0B8C8;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 4px 0;
+      font-family: inherit;
+      letter-spacing: 0.03em;
+      transition: color 150ms ease;
+      display: block;
+      text-align: right;
+    }
+
+    .skip-link:hover { color: #C96F4A; }
+
+    .skip-link.disabled {
+      cursor: default;
+      pointer-events: none;
+      color: #C0C8D4;
+    }
+
+    .skip-card {
+      background: #FAF9F6;
+      border: 1.5px solid #E0DDD8;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(46, 58, 89, 0.14);
+      padding: 20px 22px;
+      width: 280px;
+    }
+
+    .skip-card-title {
+      font-family: 'Lora', Georgia, serif;
+      font-size: 16px;
+      font-weight: 600;
+      color: #2E3A59;
+      margin-bottom: 4px;
+    }
+
+    .skip-card-sub {
+      font-size: 12px;
+      color: #8A95A8;
+      margin-bottom: 14px;
+    }
+
+    .skip-reason-input {
+      width: 100%;
+      min-height: 72px;
+      padding: 10px 12px;
+      border: 1.5px solid #D0D5E0;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #2E3A59;
+      background: #FFFFFF;
+      resize: none;
+      outline: none;
+      transition: border-color 200ms ease;
+    }
+
+    .skip-reason-input::placeholder { color: #B8C0CC; }
+    .skip-reason-input:focus { border-color: #87A96B; }
+
+    .skip-char-counter {
+      font-size: 11px;
+      color: #C0C8D4;
+      text-align: right;
+      margin-top: 4px;
+      margin-bottom: 14px;
+      transition: color 300ms ease;
+    }
+
+    .skip-char-counter.met { color: #87A96B; }
+
+    .skip-card-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .btn-cancel {
+      background: none;
+      border: 1.5px solid #D0D5E0;
+      border-radius: 6px;
+      padding: 7px 14px;
+      font-family: inherit;
+      font-size: 13px;
+      color: #2E3A59;
+      cursor: pointer;
+      transition: background 150ms ease;
+    }
+
+    .btn-cancel:hover { background: #F0EDE8; }
+
+    .btn-use-skip {
+      background: #C96F4A;
+      border: none;
+      border-radius: 6px;
+      padding: 7px 14px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      color: #FAF9F6;
+      cursor: pointer;
+      opacity: 0.38;
+      pointer-events: none;
+      transition: opacity 200ms ease, background 150ms ease;
+    }
+
+    .btn-use-skip.enabled {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .btn-use-skip.enabled:hover { background: #B05A38; }
+  `;
+
   // ---------------------------------------------------------------------------
   // State
   // ---------------------------------------------------------------------------
 
   let host           = null;
   let blurOverlay    = null;
+  let skipHost       = null; // skip affordance Shadow DOM host
   let breathRing     = null; // ref to the ring element for JS-driven animation
   let breathTimer    = null;
   let nextBtnTimer   = null;
@@ -610,12 +746,149 @@ window.OnwardPanel = (() => {
   }
 
   // ---------------------------------------------------------------------------
+  // Skip affordance — fixed bottom-right, own Shadow DOM, outside panel
+  // ---------------------------------------------------------------------------
+
+  // Renders the resting skip link ("Skip session (N left)" or disabled label).
+  function renderSkipResting(shadow, remaining) {
+    const style = shadow.querySelector("style");
+    shadow.innerHTML = "";
+    if (style) shadow.appendChild(style);
+
+    const btn = document.createElement("button");
+    btn.className = remaining > 0 ? "skip-link" : "skip-link disabled";
+    btn.textContent = remaining > 0
+      ? `Skip session (${remaining} left)`
+      : "No skips left today";
+
+    if (remaining > 0) {
+      btn.addEventListener("click", () => renderSkipConfirmation(shadow, remaining));
+    }
+
+    shadow.appendChild(btn);
+  }
+
+  // Renders the confirmation card in-place (replaces resting link).
+  function renderSkipConfirmation(shadow, remaining) {
+    const style = shadow.querySelector("style");
+    shadow.innerHTML = "";
+    if (style) shadow.appendChild(style);
+
+    const card = document.createElement("div");
+    card.className = "skip-card";
+
+    const title = document.createElement("p");
+    title.className = "skip-card-title";
+    title.textContent = "Are you sure?";
+
+    const sub = document.createElement("p");
+    sub.className = "skip-card-sub";
+    sub.textContent = `You have ${remaining} skip${remaining === 1 ? "" : "s"} remaining today.`;
+
+    const textarea = document.createElement("textarea");
+    textarea.className = "skip-reason-input";
+    textarea.placeholder = "Why are you skipping? (required)";
+
+    const counter = document.createElement("p");
+    counter.className = "skip-char-counter";
+    counter.textContent = `0 / ${SKIP_MIN_CHARS}`;
+
+    const actions = document.createElement("div");
+    actions.className = "skip-card-actions";
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.className = "btn-cancel";
+    cancelBtn.textContent = "Cancel";
+    cancelBtn.addEventListener("click", () => renderSkipResting(shadow, remaining));
+
+    const useSkipBtn = document.createElement("button");
+    useSkipBtn.className = "btn-use-skip";
+    useSkipBtn.textContent = "Use a skip";
+
+    textarea.addEventListener("input", () => {
+      const len = textarea.value.length;
+      counter.textContent = `${len} / ${SKIP_MIN_CHARS}`;
+      if (len >= SKIP_MIN_CHARS) {
+        counter.classList.add("met");
+        useSkipBtn.classList.add("enabled");
+      } else {
+        counter.classList.remove("met");
+        useSkipBtn.classList.remove("enabled");
+      }
+    });
+
+    useSkipBtn.addEventListener("click", () => {
+      if (textarea.value.length >= SKIP_MIN_CHARS) {
+        skipSession(textarea.value);
+      }
+    });
+
+    actions.append(cancelBtn, useSkipBtn);
+    card.append(title, sub, textarea, counter, actions);
+    shadow.appendChild(card);
+
+    requestAnimationFrame(() => textarea.focus());
+  }
+
+  // Creates the skip affordance element, appends it to the document, and
+  // renders the resting state. Returns the host element (or null if panel
+  // is no longer active).
+  async function createSkipAffordance() {
+    if (!OnwardPanel._active) return null;
+
+    const state = await Storage.getState();
+    const today = new Date().toLocaleDateString("en-CA");
+    const skipsUsed = (state.skipDay === today) ? (state.skipsUsed ?? 0) : 0;
+    const remaining = Math.max(0, 3 - skipsUsed);
+
+    skipHost = document.createElement("div");
+    skipHost.id = "onward-skip-host";
+    const shadow = skipHost.attachShadow({ mode: "open" });
+
+    const styleEl = document.createElement("style");
+    styleEl.textContent = SKIP_CSS;
+    shadow.appendChild(styleEl);
+
+    document.documentElement.appendChild(skipHost);
+    renderSkipResting(shadow, remaining);
+    return skipHost;
+  }
+
+  // ---------------------------------------------------------------------------
   // Session completion
   // ---------------------------------------------------------------------------
 
+  // Shared teardown: fades out blur + panel, removes skip affordance, resets state.
+  function dismiss() {
+    if (blurOverlay) {
+      blurOverlay.style.transition = `opacity ${BLUR_OUT_DURATION_MS}ms ease`;
+      blurOverlay.style.opacity = "0";
+    }
+    const panel = host?.shadowRoot?.querySelector(".panel");
+    if (panel) panel.classList.remove("visible");
+
+    const cleanupDelay = Math.max(BLUR_OUT_DURATION_MS, PANEL_FADE_MS);
+    setTimeout(() => {
+      blurOverlay?.remove();
+      host?.remove();
+      skipHost?.remove();
+      blurOverlay    = null;
+      host           = null;
+      skipHost       = null;
+      breathRing     = null;
+      sessionContent = null;
+      reflectionText = "";
+      stopBreathing();
+      clearTimeout(nextBtnTimer);
+      nextBtnTimer   = null;
+      currentTab     = 0;
+      OnwardPanel._active = false;
+    }, cleanupDelay);
+  }
+
   function complete() {
     // Notify background: reset budget and store the reflection if one was written.
-    // Sent before the cleanup timeout so sessionContent is still accessible.
+    // Sent before dismiss() so sessionContent is still accessible.
     chrome.runtime.sendMessage({
       type: MESSAGES.SESSION_COMPLETE,
       reflection: reflectionText
@@ -626,33 +899,19 @@ window.OnwardPanel = (() => {
         console.warn("[Onward] Could not send SESSION_COMPLETE:", chrome.runtime.lastError.message);
       }
     });
+    dismiss();
+  }
 
-    // Fade the blur overlay out (faster than fade-in — user wants back in)
-    if (blurOverlay) {
-      blurOverlay.style.transition = `opacity ${BLUR_OUT_DURATION_MS}ms ease`;
-      blurOverlay.style.opacity = "0";
-    }
-
-    // Fade the panel out
-    const panel = host?.shadowRoot?.querySelector(".panel");
-    if (panel) panel.classList.remove("visible");
-
-    // Clean up after the slower of the two fades
-    const cleanupDelay = Math.max(BLUR_OUT_DURATION_MS, PANEL_FADE_MS);
-    setTimeout(() => {
-      blurOverlay?.remove();
-      host?.remove();
-      blurOverlay    = null;
-      host           = null;
-      breathRing     = null;
-      sessionContent = null;
-      reflectionText = "";
-      stopBreathing();
-      clearTimeout(nextBtnTimer);
-      nextBtnTimer   = null;
-      currentTab     = 0;
-      OnwardPanel._active = false;
-    }, cleanupDelay);
+  function skipSession(reason) {
+    chrome.runtime.sendMessage({
+      type: MESSAGES.SESSION_SKIPPED,
+      reason,
+    }, () => {
+      if (chrome.runtime.lastError) {
+        console.warn("[Onward] Could not send SESSION_SKIPPED:", chrome.runtime.lastError.message);
+      }
+    });
+    dismiss();
   }
 
   // ---------------------------------------------------------------------------
@@ -711,10 +970,11 @@ window.OnwardPanel = (() => {
       // Store ring ref for JS-driven breathing animation
       breathRing = shadow.querySelector(".breath-ring");
 
-      // --- Fade panel in after blur settles ---
-      setTimeout(() => {
+      // --- Fade panel in after blur settles, then attach skip affordance ---
+      setTimeout(async () => {
         panel.classList.add("visible");
         showTab(shadow, 1, nextBtn);
+        await createSkipAffordance();
       }, BLUR_DURATION_MS);
 
       // --- Next / Done button ---
