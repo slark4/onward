@@ -26,4 +26,4 @@ Scripts communicate via `chrome.runtime.sendMessage` — they cannot call each o
 
 ## Full Spec
 
-`docs/onward_spec_v1.md` — product spec, UX details, content pool, all six build phases.
+`specs/onward_spec_v1.md` — product spec, UX details, content pool, all six build phases.
