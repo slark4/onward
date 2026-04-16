@@ -15,7 +15,7 @@ const HOSTNAME_ALIASES = {
 };
 
 const ALARM_NAME = "onward-tick";
-const TICK_INTERVAL_MINUTES = 0.5; // every 30 seconds
+const TICK_INTERVAL_MINUTES = 1 / 6; // every 10 seconds
 
 // ---------------------------------------------------------------------------
 // Helpers

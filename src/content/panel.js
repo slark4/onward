@@ -354,21 +354,26 @@ window.OnwardPanel = (() => {
       color: #B0B8C8;
       cursor: pointer;
       background: none;
-      border: none;
-      padding: 4px 0;
+      border: 1px solid #D8DCE6;
+      border-radius: 6px;
+      padding: 6px 12px;
       font-family: inherit;
       letter-spacing: 0.03em;
-      transition: color 150ms ease;
+      transition: color 150ms ease, border-color 150ms ease;
       display: block;
       text-align: right;
     }
 
-    .skip-link:hover { color: #C96F4A; }
+    .skip-link:hover {
+      color: #C96F4A;
+      border-color: #C96F4A;
+    }
 
     .skip-link.disabled {
       cursor: default;
       pointer-events: none;
       color: #C0C8D4;
+      border-color: #E8EAF0;
     }
 
     .skip-card {
