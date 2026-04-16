@@ -836,9 +836,12 @@ window.OnwardPanel = (() => {
   async function createSkipAffordance() {
     if (!OnwardPanel._active) return null;
 
-    const state = await Storage.getState();
+    // Read chrome.storage.local directly — Storage wrapper (storage.js) is not
+    // injected into content scripts, only into the service worker and options/popup pages.
+    const result = await chrome.storage.local.get("onwardState");
+    const stored = result.onwardState ?? {};
     const today = new Date().toLocaleDateString("en-CA");
-    const skipsUsed = (state.skipDay === today) ? (state.skipsUsed ?? 0) : 0;
+    const skipsUsed = (stored.skipDay === today) ? (stored.skipsUsed ?? 0) : 0;
     const remaining = Math.max(0, 3 - skipsUsed);
 
     skipHost = document.createElement("div");
